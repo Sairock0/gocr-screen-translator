@@ -85,7 +85,7 @@ def lines_touching_area(lines: list[OcrLine], cap: tuple[int, int, int, int],
         x, y = ln.x + cx, ln.y + cy
         v_overlap = min(y + ln.h, ay + ah) - max(y, ay)
         h_overlap = min(x + ln.w, ax + aw) - max(x, ax)
-        if v_overlap >= 0.3 * ln.h and h_overlap >= min(8, ln.w * 0.5):
+        if v_overlap >= 0.5 * ln.h and h_overlap >= min(8, ln.w * 0.5):
             keep.append(ln.shifted(cx, cy))
     return keep
 
@@ -162,33 +162,24 @@ def _select_words(ln: OcrLine, area) -> tuple[list, float]:
 
 
 def select_blocks(lines: list[OcrLine], area) -> list[TextBlock]:
-    """Decides which text gets translated:
-      * If the area covers almost a whole line, the WHOLE paragraph is translated (even if its
-        other lines are outside the area).
-      * If the area covers only part of a line, ONLY the words inside it are translated
-        (e.g. a single word), without the ones next to it.
+    """Decides which text gets translated: only what is inside the area.
+      * Lines count when at least half of their height is inside the area.
+      * Within a line, only the words that are at least half inside the area are kept
+        (e.g. a single word). Lines outside the area are never added.
+      * Selected lines that belong together are joined so the translation has context.
     """
     touching = lines_touching_area(lines, (0, 0, 0, 0), area)
-    if not touching:
-        return []
-    key = lambda ln: (ln.text, ln.x, ln.y)  # noqa: E731
-    full, partial = set(), []
+    selected = []
     for ln in touching:
         words, frac = _select_words(ln, area)
-        if frac >= 0.8:
-            full.add(key(ln))
+        if frac >= 0.95:
+            selected.append(ln)                      # the whole line is inside
         elif words and not (len(words) == 1 and len(words[0][0]) <= 1):  # skip stray cut-off letters
             x0 = min(w[1] for w in words)
             x1 = max(w[1] + w[3] for w in words)
             text = fix_spacing(" ".join(w[0] for w in words))
-            partial.append(OcrLine(text, x0, ln.y, max(1, x1 - x0), ln.h, list(words)))
-    blocks = []
-    if full:
-        blocks += [b for b in group_lines(list(lines)) if any(key(ln) in full for ln in b.lines)]
-    in_full = {(ln.y, ln.h) for b in blocks for ln in b.lines}
-    partial = [ln for ln in partial if (ln.y, ln.h) not in in_full]
-    if partial:
-        blocks += group_lines(partial)
+            selected.append(OcrLine(text, x0, ln.y, max(1, x1 - x0), ln.h, list(words)))
+    blocks = group_lines(selected) if selected else []
     blocks.sort(key=lambda b: (b.y, b.x))
     return blocks
 

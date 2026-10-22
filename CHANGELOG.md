@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+- Only the text inside the area is translated: lines outside the frame are no longer added to complete the paragraph.
+- A line counts when at least half of its height is inside the area.
+
 ## 1.5.0
 - Everything in English: code, comments, logs, docs and scripts.
 - Bilingual interface (English / Spanish) with a language selector; "Automatic" follows the Windows language.

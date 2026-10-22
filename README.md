@@ -25,8 +25,8 @@ language you do not fully understand, but it works on anything on your screen.
   - **Live** — like a phone camera translator: the text inside the area is translated as you move the mouse.
     Activate it by **holding** the hotkey or **tapping it on/off**.
 - **Resizable area** with the mouse wheel while aiming (the wheel never reaches the game).
-- **Smart selection** — a small area translates only the words inside it; an area that covers a whole
-  line translates the whole paragraph, even its lines outside the area.
+- **Precise selection** — only the text inside the area is translated: a small area translates a single
+  word, a tall one several lines. Lines count when at least half of them is inside the frame.
 - **Two OCR engines**, nothing extra to install:
   - **Windows OCR** (default) — built into Windows 10/11, very fast.
   - **RapidOCR** (PaddleOCR PP-OCRv4, bundled) — much better with decorated game fonts, glow, shadows and animated backgrounds.
@@ -134,8 +134,8 @@ para cualquier cosa que haya en la pantalla.
   para encender/apagar).
 - **Área ajustable con la rueda:** rueda = ancho y alto, Alt + rueda = ancho, Ctrl + rueda = alto,
   Shift + rueda = ajuste fino. Esc cancela o cierra; clic derecho copia la traducción.
-- **Selección inteligente:** un área pequeña traduce solo las palabras que tiene dentro; si cubre
-  una línea entera, se traduce el párrafo completo.
+- **Selección precisa:** solo se traduce lo que está dentro del área: un área pequeña traduce una
+  palabra y una más alta varias líneas.
 - **Dos motores OCR sin instalar nada:** Windows OCR (rápido) y RapidOCR (recomendado para letras
   decoradas de juegos).
 - **Corrige errores típicos del OCR:** separa palabras pegadas (`EXITGAME` → `EXIT GAME`).
