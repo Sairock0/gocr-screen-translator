@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtGui import QGuiApplication, QPixmap
-from PySide6.QtWidgets import (QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
                                QScrollArea, QSlider, QSpinBox, QVBoxLayout, QWidget)
 
 from gocr import APP_TITLE, VERSION
@@ -56,6 +56,7 @@ class SettingsWindow(QWidget):
     hotkey_capture = Signal(bool)
     setting_changed = Signal(str, object)
     hide_requested = Signal()
+    test_translation = Signal()
 
     def __init__(self, settings: Settings, icon_pixmap: QPixmap | None = None):
         super().__init__(None, Qt.FramelessWindowHint | Qt.Window)
@@ -279,7 +280,19 @@ class SettingsWindow(QWidget):
         self.source_combo.currentIndexChanged.connect(
             lambda _i: self._emit("source_lang", self.source_combo.currentData()))
         card.body.addWidget(row(tr("tr.source"), self.source_combo))
+        test_btn = QPushButton(tr("tr.test"))
+        test_btn.clicked.connect(lambda: (self.test_result.setText(tr("tr.testing")), self.test_translation.emit()))
+        self.test_result = QLabel()
+        self.test_result.setObjectName("Muted")
+        self.test_result.setWordWrap(True)
+        self.test_result.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        card.body.addWidget(row(tr("tr.test_label"), test_btn))
+        card.body.addWidget(self.test_result)
         return card
+
+    def show_test_result(self, ok: bool, text: str):
+        mark = "✓" if ok else "⚠"
+        self.test_result.setText(f"{mark} {text}")
 
     def _card_overlay(self):
         card = Card(tr("ov.title"), tr("ov.subtitle"))

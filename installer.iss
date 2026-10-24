@@ -1,6 +1,6 @@
 ; GOCR installer (Inno Setup 6). build.bat compiles it automatically when Inno Setup is installed.
 #define MyAppName "GOCR"
-#define MyAppVersion "1.5.1"
+#define MyAppVersion "1.5.2"
 #define MyAppExe "GOCR.exe"
 
 [Setup]

@@ -219,7 +219,7 @@ def build_blocks(lines: list[OcrLine], img: np.ndarray, cap: tuple[int, int, int
                 b.translation = t
                 cache.put((b.text, target, source), t)
         except TranslateError as exc:
-            warning = str(exc)
+            warning = exc   # TranslateError: str(exc) is the message, exc.kind the cause
     return blocks, warning
 
 

@@ -96,7 +96,10 @@ STRINGS: dict[str, dict[str, str]] = {
     "area.reading": {"en": "Reading text…", "es": "Leyendo texto…"},
     "area.translating": {"en": "Translating…", "es": "Traduciendo…"},
     "area.live": {"en": "● Live", "es": "● En vivo"},
-    "area.live_offline": {"en": "● Live · offline", "es": "● En vivo · sin internet"},
+    "area.live_offline": {"en": "● Live · can't reach the translator", "es": "● En vivo · no conecta con el traductor"},
+    "area.live_rate": {"en": "● Live · Google is limiting requests, wait a moment",
+                       "es": "● En vivo · Google limitó las peticiones, espera un momento"},
+    "area.live_error": {"en": "● Live · translation error (see the log)", "es": "● En vivo · error al traducir (mira el registro)"},
     "area.ocr_error": {"en": "⚠ OCR error: check the settings", "es": "⚠ Error de OCR: mira los ajustes"},
     "area.preview_screen": {"en": "1920×1080 screen", "es": "pantalla 1920×1080"},
 
@@ -214,6 +217,11 @@ STRINGS: dict[str, dict[str, str]] = {
                     "es": "Google Translate gratuito. Necesita conexión a internet."},
     "tr.target": {"en": "Translate to", "es": "Traducir a"},
     "tr.source": {"en": "Original language", "es": "Idioma original"},
+    "tr.test_label": {"en": "Check that translation works", "es": "Comprobar que la traducción funciona"},
+    "tr.test": {"en": "Test", "es": "Probar"},
+    "tr.testing": {"en": "Testing…", "es": "Probando…"},
+    "tr.test_ok": {"en": "It works: «{text}»", "es": "Funciona: «{text}»"},
+    "tr.test_log": {"en": "Details in %APPDATA%\\GOCR\\gocr.log", "es": "Detalles en %APPDATA%\\GOCR\\gocr.log"},
 
     # --- overlay card
     "ov.title": {"en": "On-screen translation", "es": "Traducción en pantalla"},

@@ -57,6 +57,7 @@ class Controller(QObject):
     result_ready = Signal(int, object)
     stage = Signal(int, str)
     languages_ready = Signal(object)
+    test_done = Signal(bool, str)
     live_ready = Signal(int, object, object)
 
     def __init__(self, app: QApplication, settings: Settings, start_hidden: bool):
@@ -122,6 +123,7 @@ class Controller(QObject):
         self.live_ready.connect(self.on_live_result)
         self.stage.connect(self._on_stage)
         self.languages_ready.connect(self._languages_loaded)
+        self.test_done.connect(lambda ok, text: self.window.show_test_result(ok, text))
 
         self._build_tray()
         self.apply_theme()
@@ -156,6 +158,7 @@ class Controller(QObject):
         win.hotkey_capture.connect(self._capturing)
         win.setting_changed.connect(self.on_setting)
         win.hide_requested.connect(self.hide_window)
+        win.test_translation.connect(self.run_translation_test)
         self.window = win
         if old is not None:
             win.set_ocr_languages(self.ocr_languages)
@@ -311,6 +314,20 @@ class Controller(QObject):
         elif key == "ui_lang":
             QTimer.singleShot(0, lambda: self.set_ui_language(value))
         self.save_timer.start()
+
+    def run_translation_test(self):
+        target = self.settings["target_lang"]
+
+        def work():
+            from gocr.translate import TranslateError, test_translation
+            try:
+                self.test_done.emit(True, tr("tr.test_ok", text=test_translation(target)))
+            except TranslateError as exc:
+                self.test_done.emit(False, str(exc) + "\n" + tr("tr.test_log"))
+            except Exception as exc:  # noqa: BLE001
+                log.exception("Translation test failed")
+                self.test_done.emit(False, repr(exc))
+        self.executor.submit(work)
 
     def _load_languages(self):
         from gocr.ocr.windows_ocr import available_languages
@@ -470,7 +487,7 @@ class Controller(QObject):
         if not blocks:
             self.overlay.show_message(rect, tr("msg.no_text"), "warn", 2)
         elif warning:
-            self.overlay.show_message(rect, warning, "error", 5)
+            self.overlay.show_message(rect, str(warning), "error", 5)
         else:
             self.overlay.set_excluded(False)  # so it shows up in Win+Shift+S
             self.overlay.show_blocks(blocks, rect, int(self.settings["overlay_auto_hide"]), interactive=True)
@@ -681,7 +698,14 @@ class Controller(QObject):
         if blocks or not self.shown_blocks or sig != old:
             self.shown_blocks = blocks
         self.overlay.set_view(self._area_rect())
-        self.area.set_label(tr("area.live_offline") if warning else tr("area.live"))
+        if warning is None:
+            self.area.set_label(tr("area.live"))
+        elif getattr(warning, "kind", "") == "rate":
+            self.area.set_label(tr("area.live_rate"))
+        elif getattr(warning, "kind", "") == "offline":
+            self.area.set_label(tr("area.live_offline"))
+        else:
+            self.area.set_label(tr("area.live_error"))
 
 
 # --------------------------------------------------------------------------- single instance

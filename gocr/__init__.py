@@ -2,4 +2,4 @@
 
 APP_NAME = "GOCR"
 APP_TITLE = "GOCR"
-VERSION = "1.5.1"
+VERSION = "1.5.2"

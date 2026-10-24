@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.2
+- Translation is more robust: if one Google endpoint fails, two others are tried, and the one that works is remembered.
+- After all endpoints fail, requests pause for a few seconds so a temporary block can lift.
+- The real cause of every translation failure is written to the log.
+- Clearer live-mode messages (can't reach the translator / Google is limiting requests).
+- New "Test" button in Settings › Translation.
+
 ## 1.5.1
 - Only the text inside the area is translated: lines outside the frame are no longer added to complete the paragraph.
 - A line counts when at least half of its height is inside the area.
