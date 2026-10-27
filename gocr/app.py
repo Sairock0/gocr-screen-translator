@@ -20,7 +20,7 @@ from gocr import APP_NAME, APP_TITLE, VERSION, capture, i18n, pipeline, winapi
 from gocr.config import AREA_MAX_H, AREA_MAX_W, AREA_MIN_H, AREA_MIN_W, Settings, app_data_dir, resource_path
 from gocr.hooks import MOD_ALT, MOD_CTRL, MOD_SHIFT, HookSignals, InputHook
 from gocr.i18n import tr
-from gocr.ocr import OcrError, get_engine
+from gocr.ocr import OcrError, engine_variant, get_engine
 from gocr.ui import theme as th
 from gocr.ui.area import AreaWidget
 from gocr.ui.overlay import ResultOverlay
@@ -299,7 +299,7 @@ class Controller(QObject):
                 self.act_pause.setChecked(not value)
                 self.act_pause.blockSignals(False)
             self.refresh_status()
-        elif key in ("ocr_engine", "ocr_lang"):
+        elif key in ("ocr_engine", "ocr_lang", "rapid_script"):
             self.window.update_engine_ui()
             self.prewarm()
         elif key in ("translate_mode", "live_activation"):
@@ -336,7 +336,7 @@ class Controller(QObject):
         self.languages_ready.emit(langs)
 
     def prewarm(self):
-        engine, lang = self.settings["ocr_engine"], self.settings["ocr_lang"]
+        engine, lang = self.settings["ocr_engine"], engine_variant(self._opts())
 
         def warm():
             try:
@@ -360,7 +360,7 @@ class Controller(QObject):
                 self.overlay.set_view(rect)
 
     def _opts(self) -> dict:
-        return {k: self.settings[k] for k in ("ocr_engine", "ocr_lang", "target_lang", "source_lang")}
+        return {k: self.settings[k] for k in ("ocr_engine", "ocr_lang", "rapid_script", "target_lang", "source_lang")}
 
     def _reset_size_if_needed(self):
         if not self.settings["remember_size"]:

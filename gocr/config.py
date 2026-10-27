@@ -27,6 +27,7 @@ DEFAULTS: dict = {
     "translate_mode": "release",          # "release" | "live"
     "live_activation": "hold",            # live mode: "hold" | "toggle"
     "ocr_engine": "windows",              # "windows" | "rapid"
+    "rapid_script": "auto",               # RapidOCR alphabet: "auto" | "latin" | "chinese"
     "ocr_lang": "en-US",                  # text language for Windows OCR
     "source_lang": "auto",
     "target_lang": "es",
@@ -86,6 +87,7 @@ class Settings:
             "translate_mode": ("release", "live"),
             "live_activation": ("hold", "toggle"),
             "ocr_engine": ("windows", "rapid"),
+            "rapid_script": ("auto", "latin", "chinese"),
         }
         for key, allowed in choices.items():
             if d.get(key) not in allowed:

@@ -1,14 +1,20 @@
-"""RapidOCR engine (PaddleOCR PP-OCRv4 models in ONNX format).
+"""RapidOCR engine (PaddleOCR models in ONNX format).
 
 Lightweight implementation (onnxruntime + OpenCV only) of the DBNet detection and the
-CRNN/CTC recognition used by RapidOCR. The models ship inside the app.
-Reads stylized fonts, low-contrast text, English and Chinese very well.
+CRNN/CTC recognition used by RapidOCR. The models ship inside the app:
+- det.onnx: PP-OCRv4 text detection.
+- rec_latin_cyrillic.onnx: PP-OCRv5 Cyrillic recognition (Latin + Cyrillic alphabets:
+  English, Spanish, Russian, Ukrainian...).
+- rec.onnx: PP-OCRv4 Chinese recognition (Chinese + Latin).
+In "auto" mode every line is read with the Latin/Cyrillic model; lines it cannot read
+(Chinese) are read again with the Chinese model.
 """
 from __future__ import annotations
 
 import logging
 import math
 import os
+import re
 
 import cv2
 import numpy as np
@@ -31,6 +37,23 @@ def _session(path):
     return ort.InferenceSession(str(path), sess_options=opts, providers=["CPUExecutionProvider"])
 
 
+SCRIPTS = ("auto", "latin", "chinese")
+_CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]")
+
+
+class _Recognizer:
+    """One CRNN/CTC recognition model with its dictionary."""
+
+    def __init__(self, path):
+        self.session = _session(path)
+        meta = self.session.get_modelmeta().custom_metadata_map
+        chars = meta.get("character", "").splitlines()
+        if not chars:
+            raise OcrError(tr("err.rapid_dict"))
+        self.chars = ["blank"] + chars + [" "]
+        self.input = self.session.get_inputs()[0].name
+
+
 class RapidOcr:
     name = "rapid"
 
@@ -44,23 +67,22 @@ class RapidOcr:
     rec_h = 48
     rec_w = 320
 
-    def __init__(self):
+    def __init__(self, script: str = "auto"):
+        self.script = script if script in SCRIPTS else "auto"
         det_path = resource_path("gocr", "models", "det.onnx")
-        rec_path = resource_path("gocr", "models", "rec.onnx")
-        if not det_path.exists() or not rec_path.exists():
+        paths = {"chinese": resource_path("gocr", "models", "rec.onnx"),
+                 "latin": resource_path("gocr", "models", "rec_latin_cyrillic.onnx")}
+        needed = ["latin", "chinese"] if self.script == "auto" else [self.script]
+        if not det_path.exists() or any(not paths[k].exists() for k in needed):
             raise OcrError(tr("err.rapid_models"))
         try:
             self.det = _session(det_path)
-            self.rec = _session(rec_path)
+            self.recs = {k: _Recognizer(paths[k]) for k in needed}
+        except OcrError:
+            raise
         except Exception as exc:
             raise OcrError(tr("err.rapid_load", error=exc)) from exc
-        meta = self.rec.get_modelmeta().custom_metadata_map
-        chars = meta.get("character", "").splitlines()
-        if not chars:
-            raise OcrError(tr("err.rapid_dict"))
-        self.chars = ["blank"] + chars + [" "]
         self.det_input = self.det.get_inputs()[0].name
-        self.rec_input = self.rec.get_inputs()[0].name
 
     # ------------------------------------------------------------------ API
     def recognize(self, img_bgra: np.ndarray) -> list[OcrLine]:
@@ -74,7 +96,7 @@ class RapidOcr:
         if not boxes:
             return []
         crops = [self._crop(img, b) for b in boxes]
-        texts = self._recognize_crops(crops)
+        texts = self._read(crops)
         lines = []
         for box, (text, score, xs) in zip(boxes, texts):
             if score < self.text_score or not text.strip():
@@ -185,9 +207,33 @@ class RapidOcr:
             crop = np.rot90(crop)
         return crop
 
-    # ------------------------------------------------------------------ reconocimiento
-    def _recognize_crops(self, crops: list[np.ndarray]) -> list[tuple[str, float]]:
-        results: list[tuple[str, float]] = [("", 0.0)] * len(crops)
+    # ------------------------------------------------------------------ recognition
+    def _read(self, crops: list[np.ndarray]) -> list:
+        if self.script != "auto":
+            return self._recognize_crops(crops, self.recs[self.script])
+        results = self._recognize_crops(crops, self.recs["latin"])
+        # Chinese text read by the Latin/Cyrillic model comes out empty, very short for the
+        # size of the box, or with low confidence: those lines are read again.
+        retry = [i for i, (text, conf, _xs) in enumerate(results)
+                 if self._doubtful(text, conf, crops[i])]
+        if retry:
+            again = self._recognize_crops([crops[i] for i in retry], self.recs["chinese"])
+            for i, alt in zip(retry, again):
+                text = results[i][0]
+                alt_text = alt[0].replace(" ", "")
+                cjk = len(_CJK.findall(alt_text))
+                if alt_text and (cjk >= max(1, 0.3 * len(alt_text)) or not text.strip()):
+                    results[i] = alt
+        return results
+
+    @staticmethod
+    def _doubtful(text: str, conf: float, crop: np.ndarray) -> bool:
+        chars = len(text.replace(" ", ""))
+        ratio = crop.shape[1] / max(crop.shape[0], 1)
+        return chars == 0 or conf < 0.8 or chars < 0.4 * ratio
+
+    def _recognize_crops(self, crops: list[np.ndarray], rec: _Recognizer) -> list[tuple[str, float, list]]:
+        results: list[tuple[str, float, list]] = [("", 0.0, [])] * len(crops)
         order = np.argsort([c.shape[1] / max(c.shape[0], 1) for c in crops])
         batch = 6
         for start in range(0, len(crops), batch):
@@ -202,17 +248,18 @@ class RapidOcr:
                 resized = cv2.resize(c, (max(1, rw), self.rec_h)).astype(np.float32)
                 resized = (resized.transpose(2, 0, 1) / 255.0 - 0.5) / 0.5
                 tensor[j, :, :, :rw] = resized
-            preds = self.rec.run(None, {self.rec_input: tensor})[0]
+            preds = rec.session.run(None, {rec.input: tensor})[0]
             T = preds.shape[1]
             for j, i in enumerate(idx):
                 c = crops[i]
                 rw = min(width, int(math.ceil(self.rec_h * c.shape[1] / max(c.shape[0], 1))))
                 # CTC column -> x inside the original crop
                 col_to_x = (width / T) * (c.shape[1] / max(rw, 1))
-                results[i] = self._ctc_decode(preds[j], col_to_x)
+                results[i] = self._ctc_decode(preds[j], rec.chars, col_to_x)
         return results
 
-    def _ctc_decode(self, pred: np.ndarray, col_to_x: float = 1.0):
+    @staticmethod
+    def _ctc_decode(pred: np.ndarray, charset: list, col_to_x: float = 1.0):
         ids = pred.argmax(axis=1)
         probs = pred.max(axis=1)
         keep = np.ones(len(ids), dtype=bool)
@@ -221,8 +268,8 @@ class RapidOcr:
         cols = np.nonzero(keep)[0]
         chars, xs = [], []
         for col in cols:
-            if ids[col] < len(self.chars):
-                chars.append(self.chars[ids[col]])
+            if ids[col] < len(charset):
+                chars.append(charset[ids[col]])
                 xs.append((col + 0.5) * col_to_x)
         conf = float(np.mean(probs[keep])) if keep.any() else 0.0
         return "".join(chars), conf, xs

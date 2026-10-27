@@ -10,6 +10,7 @@ a = Analysis(
     datas=[
         ("gocr/models/det.onnx", "gocr/models"),
         ("gocr/models/rec.onnx", "gocr/models"),
+        ("gocr/models/rec_latin_cyrillic.onnx", "gocr/models"),
         ("gocr/data/english_words.txt.gz", "gocr/data"),
         ("assets/icon.png", "assets"),
         ("assets/icon.ico", "assets"),

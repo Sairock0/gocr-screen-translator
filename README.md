@@ -29,7 +29,8 @@ language you do not fully understand, but it works on anything on your screen.
   word, a tall one several lines. Lines count when at least half of them is inside the frame.
 - **Two OCR engines**, nothing extra to install:
   - **Windows OCR** (default) — built into Windows 10/11, very fast.
-  - **RapidOCR** (PaddleOCR PP-OCRv4, bundled) — much better with decorated game fonts, glow, shadows and animated backgrounds.
+  - **RapidOCR** (PaddleOCR, bundled) — much better with decorated game fonts, glow, shadows and animated backgrounds.
+    Reads the Latin alphabet (English, Spanish, French...), Cyrillic (Russian, Ukrainian...) and Chinese, detected automatically.
 - **Fixes common OCR mistakes** — splits glued words (`EXITGAME` → `EXIT GAME`, `Pressanykey` → `Press any key`) and adds missing spaces after periods.
 - **Free translation** through Google Translate (no account or API key), with a cache so repeated text is instant.
 - Translations show up in **Win+Shift+S / Print Screen** snips.
@@ -102,7 +103,7 @@ gocr/
   winapi.py           Win32 helpers (DPI, monitors, capture exclusion, startup)
   capture.py          screen capture with mss
   ocr/windows_ocr.py  Windows.Media.Ocr engine
-  ocr/rapid_ocr.py    RapidOCR (PP-OCRv4 ONNX) engine
+  ocr/rapid_ocr.py    RapidOCR (PaddleOCR ONNX) engine: Latin, Cyrillic, Chinese
   ui/                 settings window, capture frame, translation overlay, theme
 ```
 
@@ -137,7 +138,7 @@ para cualquier cosa que haya en la pantalla.
 - **Selección precisa:** solo se traduce lo que está dentro del área: un área pequeña traduce una
   palabra y una más alta varias líneas.
 - **Dos motores OCR sin instalar nada:** Windows OCR (rápido) y RapidOCR (recomendado para letras
-  decoradas de juegos).
+  decoradas de juegos; lee alfabeto latino, cirílico —ruso, ucraniano…— y chino, y lo detecta solo).
 - **Corrige errores típicos del OCR:** separa palabras pegadas (`EXITGAME` → `EXIT GAME`).
 - **Traducción gratis** con Google Translate, modo claro/oscuro e interfaz en **español o inglés**
   (*Ajustes › General › Idioma de la interfaz*).

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0
+- RapidOCR now reads Cyrillic (Russian, Ukrainian, Belarusian, Bulgarian, Serbian...) with a bundled PP-OCRv5 model.
+- The same model reads the Latin alphabet with correct spaces between words (`EXITGAME` now comes out as `EXIT GAME` directly).
+- New "Alphabet" option for RapidOCR: Automatic (default), Latin and Cyrillic, or Chinese. In Automatic mode, lines that the Latin/Cyrillic model cannot read are read again with the Chinese model.
+
 ## 1.5.2
 - Translation is more robust: if one Google endpoint fails, two others are tried, and the one that works is remembered.
 - After all endpoints fail, requests pause for a few seconds so a temporary block can lift.

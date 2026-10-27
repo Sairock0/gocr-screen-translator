@@ -5,7 +5,7 @@ third-party components, each under its own license:
 
 | Component | Used for | License |
 |---|---|---|
-| [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) PP-OCRv4 models (`gocr/models/det.onnx`, `gocr/models/rec.onnx`), ONNX versions distributed by [RapidOCR](https://github.com/RapidAI/RapidOCR) | RapidOCR engine | Apache-2.0 |
+| [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) PP-OCRv4 models (`gocr/models/det.onnx`, `gocr/models/rec.onnx`) and PP-OCRv5 Cyrillic model (`gocr/models/rec_latin_cyrillic.onnx`), ONNX versions distributed by [RapidOCR](https://github.com/RapidAI/RapidOCR) | RapidOCR engine | Apache-2.0 |
 | [wordninja](https://github.com/keredson/wordninja) word list (`gocr/data/english_words.txt.gz`) and splitting algorithm | Splitting glued words | MIT |
 | [Qt for Python / PySide6](https://doc.qt.io/qtforpython/) | User interface | LGPL-3.0 |
 | [ONNX Runtime](https://github.com/microsoft/onnxruntime) | RapidOCR inference | MIT |

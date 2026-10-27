@@ -19,7 +19,7 @@ import cv2
 import numpy as np
 
 from gocr import capture
-from gocr.ocr import OcrLine, TextBlock, get_engine, group_lines, sample_colors
+from gocr.ocr import OcrLine, TextBlock, engine_variant, get_engine, group_lines, sample_colors
 from gocr.translate import TranslateError, translate_texts
 from gocr.i18n import tr
 from gocr.wordsplit import fix_spacing
@@ -131,7 +131,7 @@ class TranslationCache:
 
 def ocr_screen_lines(img: np.ndarray, cap: tuple[int, int, int, int], opts: dict) -> list[OcrLine]:
     """OCR of the whole capture; returns ALL lines in screen coordinates."""
-    engine = get_engine(opts["ocr_engine"], opts["ocr_lang"])
+    engine = get_engine(opts["ocr_engine"], engine_variant(opts))
     return [ln.shifted(cap[0], cap[1]) for ln in recognize(engine, img)]
 
 

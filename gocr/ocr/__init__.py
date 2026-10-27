@@ -66,15 +66,21 @@ _engine_lock = threading.Lock()
 _engine_cache: dict[tuple, object] = {}
 
 
+def engine_variant(opts: dict) -> str:
+    """Windows OCR uses a language; RapidOCR uses an alphabet (auto / latin / chinese)."""
+    return opts.get("ocr_lang", "en-US") if opts.get("ocr_engine") == "windows" else opts.get("rapid_script", "auto")
+
+
 def get_engine(name: str, lang: str):
-    """Returns (and caches) an engine instance. Always call it from the OCR thread."""
-    key = (name, lang if name == "windows" else "")
+    """Returns (and caches) an engine instance. Always call it from the OCR thread.
+    `lang` is the Windows OCR language, or the RapidOCR alphabet."""
+    key = (name, lang)
     with _engine_lock:
         eng = _engine_cache.get(key)
         if eng is None:
             if name == "rapid":
                 from gocr.ocr.rapid_ocr import RapidOcr
-                eng = RapidOcr()
+                eng = RapidOcr(lang)
             else:
                 from gocr.ocr.windows_ocr import WindowsOcr
                 eng = WindowsOcr(lang)

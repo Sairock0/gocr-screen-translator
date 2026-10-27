@@ -257,6 +257,14 @@ class SettingsWindow(QWidget):
         self.lang_combo.currentIndexChanged.connect(self._lang_changed)
         self.lang_row = row(tr("ocr.lang"), self.lang_combo, tr("ocr.lang_hint"))
         card.body.addWidget(self.lang_row)
+        self.script_combo = QComboBox()
+        self.script_combo.setMinimumWidth(200)
+        for key in ("auto", "latin", "chinese"):
+            self.script_combo.addItem(tr(f"ocr.script_{key}"), key)
+        self.script_combo.currentIndexChanged.connect(
+            lambda _i: self._emit("rapid_script", self.script_combo.currentData()))
+        self.script_row = row(tr("ocr.script"), self.script_combo, tr("ocr.script_hint"))
+        card.body.addWidget(self.script_row)
         self.ocr_info = QLabel()
         self.ocr_info.setObjectName("Muted")
         self.ocr_info.setWordWrap(True)
@@ -370,6 +378,7 @@ class SettingsWindow(QWidget):
         self.preview.set_size(int(s["area_w"]), int(s["area_h"]))
         self.remember.setChecked(bool(s["remember_size"]))
         self.engine_seg.set_value(s["ocr_engine"])
+        self._select(self.script_combo, s["rapid_script"])
         self._select(self.target_combo, s["target_lang"])
         self._select(self.source_combo, s["source_lang"])
         self._select(self.style_combo, s["overlay_style"])
@@ -415,6 +424,7 @@ class SettingsWindow(QWidget):
         engine = self.settings["ocr_engine"]
         self.engine_seg.set_value(engine)
         self.lang_row.setVisible(engine == "windows")
+        self.script_row.setVisible(engine == "rapid")
         if engine == "rapid":
             self.ocr_info.setText(tr("ocr.info_rapid"))
         elif self.lang_combo.count() == 0:

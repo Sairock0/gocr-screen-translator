@@ -198,10 +198,18 @@ STRINGS: dict[str, dict[str, str]] = {
                         "es": "Windows OCR: muy rápido. RapidOCR: lee mucho mejor las letras decoradas de los juegos (con sombra, brillo o fondo con fuego)."},
     "ocr.lang": {"en": "Text language", "es": "Idioma del texto"},
     "ocr.lang_hint": {"en": "OCR languages installed in Windows.", "es": "Idiomas de OCR instalados en Windows."},
-    "ocr.info_rapid": {"en": "RapidOCR ships with the app. It reads English, Chinese and numbers. "
-                             "The first pass takes a bit longer while the model loads.",
-                       "es": "RapidOCR viene incluido en la app. Reconoce inglés, chino y números. "
-                             "La primera lectura tarda un poco más mientras se carga el modelo."},
+    "ocr.info_rapid": {"en": "RapidOCR ships with the app. It reads the Latin alphabet (English, Spanish, French...), "
+                             "Cyrillic (Russian, Ukrainian...) and Chinese. "
+                             "The first pass takes a bit longer while the models load.",
+                       "es": "RapidOCR viene incluido en la app. Lee el alfabeto latino (inglés, español, francés…), "
+                             "el cirílico (ruso, ucraniano…) y el chino. "
+                             "La primera lectura tarda un poco más mientras se cargan los modelos."},
+    "ocr.script": {"en": "Alphabet", "es": "Alfabeto"},
+    "ocr.script_hint": {"en": "Automatic recognizes them all. Pick one only if it ever mixes them up.",
+                        "es": "Automático los reconoce todos. Elige uno solo si alguna vez los confunde."},
+    "ocr.script_auto": {"en": "Automatic", "es": "Automático"},
+    "ocr.script_latin": {"en": "Latin and Cyrillic (English, Russian...)", "es": "Latino y cirílico (inglés, ruso…)"},
+    "ocr.script_chinese": {"en": "Chinese", "es": "Chino"},
     "ocr.info_none": {"en": "No Windows OCR languages were found. To add English, open PowerShell as administrator "
                             "and run:\n{cmd}\n…or use RapidOCR.",
                       "es": "No se encontraron idiomas de OCR de Windows. Para añadir inglés, abre PowerShell "
