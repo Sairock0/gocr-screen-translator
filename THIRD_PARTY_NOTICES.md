@@ -1,6 +1,6 @@
 # Third-party notices
 
-GOCR is released under the MIT license (see `LICENSE`). It bundles or depends on the following
+GOCR is released under the GNU General Public License v3.0 or later (see `LICENSE`). It bundles or depends on the following
 third-party components, each under its own license:
 
 | Component | Used for | License |

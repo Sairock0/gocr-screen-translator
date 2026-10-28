@@ -118,8 +118,13 @@ Settings and the log file are stored in `%APPDATA%\GOCR\` (`settings.json`, `goc
 
 ## License
 
-[MIT](LICENSE). Bundled models and libraries keep their own licenses — see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Not affiliated with Google.
+Copyright © 2026 Sairock.
+
+GOCR is free software released under the [GNU General Public License v3.0 or later](LICENSE).
+You may use, study, share and modify it, but any copy or modified version you distribute must
+keep this license, credit the original author and include its source code. Bundled models and
+libraries keep their own licenses — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Not affiliated with Google.
 
 ---
 
@@ -151,3 +156,7 @@ probar cambios sin compilar, usa `run_dev.bat`.
 
 **Limitaciones:** en pantalla completa exclusiva no se puede dibujar encima del juego: usa
 *ventana sin bordes*. Si el juego se ejecuta como administrador, GOCR también debe hacerlo.
+
+**Licencia:** © 2026 Sairock, bajo la [GNU GPL v3.0 o posterior](LICENSE). Puedes usarlo,
+estudiarlo, compartirlo y modificarlo, pero cualquier copia o versión modificada que se distribuya
+debe mantener esta licencia, dar crédito al autor original e incluir su código fuente.
