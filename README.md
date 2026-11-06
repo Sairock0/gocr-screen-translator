@@ -32,7 +32,10 @@ language you do not fully understand, but it works on anything on your screen.
   - **RapidOCR** (PaddleOCR, bundled) — much better with decorated game fonts, glow, shadows and animated backgrounds.
     Reads the Latin alphabet (English, Spanish, French...), Cyrillic (Russian, Ukrainian...) and Chinese, detected automatically.
 - **Fixes common OCR mistakes** — splits glued words (`EXITGAME` → `EXIT GAME`, `Pressanykey` → `Press any key`) and adds missing spaces after periods.
-- **Free translation** through Google Translate (no account or API key), with a cache so repeated text is instant.
+- **Offline translator** (default): OPUS-MT models run on your PC, in a fraction of a second and
+  without internet. Each language pair (about 70 MB) downloads by itself the first time.
+  **Google Translate** (free, no account) is available too, and covers the languages without an offline model.
+- **Graphics card support** for RapidOCR (NVIDIA, AMD or Intel through DirectML); it picks the fastest option automatically.
 - Translations show up in **Win+Shift+S / Print Screen** snips.
 - **Light and dark mode**, **English and Spanish** interface, start with Windows, single instance.
 
@@ -114,7 +117,8 @@ Settings and the log file are stored in `%APPDATA%\GOCR\` (`settings.json`, `goc
 - Games in **exclusive fullscreen** do not allow any window on top and may capture as black.
   Use **borderless window** or **windowed** mode.
 - If a game runs as administrator, GOCR must run as administrator too to receive the hotkey.
-- Translation needs an internet connection.
+- The offline translator is good for game text in English; for other languages Google is often better.
+  The first use of each language pair needs internet to download its model.
 
 ## License
 
@@ -145,7 +149,11 @@ para cualquier cosa que haya en la pantalla.
 - **Dos motores OCR sin instalar nada:** Windows OCR (rápido) y RapidOCR (recomendado para letras
   decoradas de juegos; lee alfabeto latino, cirílico —ruso, ucraniano…— y chino, y lo detecta solo).
 - **Corrige errores típicos del OCR:** separa palabras pegadas (`EXITGAME` → `EXIT GAME`).
-- **Traducción gratis** con Google Translate, modo claro/oscuro e interfaz en **español o inglés**
+- **Traductor sin internet** (por defecto): modelos OPUS-MT que traducen en tu PC en una fracción
+  de segundo. Cada par de idiomas (unos 70 MB) se descarga solo la primera vez. También está
+  **Google Translate** gratis para los idiomas sin modelo.
+- **Usa la tarjeta gráfica** (NVIDIA, AMD o Intel) para leer el texto más rápido, si conviene.
+- Modo claro/oscuro e interfaz en **español o inglés**
   (*Ajustes › General › Idioma de la interfaz*).
 
 **Descargar:** en la página de **Releases** está `GOCR-Setup.exe` (instalador) y

@@ -59,6 +59,8 @@ class Controller(QObject):
     languages_ready = Signal(object)
     test_done = Signal(bool, str)
     live_ready = Signal(int, object, object)
+    mt_progress = Signal(str, float, str)     # offline model download: pair, 0..1, error
+    device_ready = Signal(object)             # RapidOCR device info (dict) or None
 
     def __init__(self, app: QApplication, settings: Settings, start_hidden: bool):
         super().__init__()
@@ -81,6 +83,9 @@ class Controller(QObject):
         self.press_time = 0.0
         self.press_was_live = False
         self.wheel_used = False
+        self.live_warning_logged = ""
+        self.timing_last_log = time.monotonic()
+        self.mt_state = {"pair": "", "progress": 0.0, "error": ""}
 
         i18n.set_language(settings["ui_lang"])
         self.icon = QIcon(str(resource_path("assets", "icon.png")))
@@ -124,6 +129,10 @@ class Controller(QObject):
         self.stage.connect(self._on_stage)
         self.languages_ready.connect(self._languages_loaded)
         self.test_done.connect(lambda ok, text: self.window.show_test_result(ok, text))
+        self.mt_progress.connect(self._on_mt_progress)
+        self.device_ready.connect(self._on_device_ready)
+        from gocr import offline_mt
+        offline_mt.downloads.listener = lambda pair, p, err: self.mt_progress.emit(pair or "", float(p), err or "")
 
         self._build_tray()
         self.apply_theme()
@@ -137,6 +146,8 @@ class Controller(QObject):
         else:
             self.window.set_ocr_languages([])
         self.prewarm()
+        self.refresh_offline_status()
+        QTimer.singleShot(4000, self.prefetch_models)
 
         if winapi.IS_WIN:  # the registry is the source of truth (the installer can enable it too)
             settings["start_with_windows"] = winapi.is_start_with_windows()
@@ -159,9 +170,12 @@ class Controller(QObject):
         win.setting_changed.connect(self.on_setting)
         win.hide_requested.connect(self.hide_window)
         win.test_translation.connect(self.run_translation_test)
+        win.download_models.connect(lambda: self.prefetch_models(force=True))
         self.window = win
         if old is not None:
             win.set_ocr_languages(self.ocr_languages)
+            QTimer.singleShot(0, self.refresh_offline_status)
+            QTimer.singleShot(0, lambda: self._on_device_ready(getattr(self, "device_info", None)))
             win.apply_theme(self.settings["theme"])
             win.setGeometry(old.geometry())
             visible = old.isVisible()
@@ -299,7 +313,11 @@ class Controller(QObject):
                 self.act_pause.setChecked(not value)
                 self.act_pause.blockSignals(False)
             self.refresh_status()
-        elif key in ("ocr_engine", "ocr_lang", "rapid_script"):
+        elif key in ("translator", "target_lang", "source_lang"):
+            self.refresh_offline_status()
+            if key != "source_lang":
+                QTimer.singleShot(300, self.prefetch_models)
+        elif key in ("ocr_engine", "ocr_lang", "rapid_script", "ocr_device"):
             self.window.update_engine_ui()
             self.prewarm()
         elif key in ("translate_mode", "live_activation"):
@@ -317,11 +335,14 @@ class Controller(QObject):
 
     def run_translation_test(self):
         target = self.settings["target_lang"]
+        engine = self.settings["translator"]
 
         def work():
             from gocr.translate import TranslateError, test_translation
             try:
-                self.test_done.emit(True, tr("tr.test_ok", text=test_translation(target)))
+                text, used, ms = test_translation(target, engine)
+                self.test_done.emit(True, tr("tr.test_ok_engine", text=text, ms=f"{ms:.0f}",
+                                             engine=tr("tr.used_offline" if used == "offline" else "tr.used_google")))
             except TranslateError as exc:
                 self.test_done.emit(False, str(exc) + "\n" + tr("tr.test_log"))
             except Exception as exc:  # noqa: BLE001
@@ -342,10 +363,83 @@ class Controller(QObject):
             try:
                 from gocr.wordsplit import fix_spacing
                 fix_spacing("warmupwords")  # loads the word list
-                get_engine(engine, lang)
+                eng = get_engine(engine, lang)
+                if engine == "rapid":
+                    self.device_ready.emit({"device": eng.device, **eng.timings})
             except Exception as exc:
                 log.warning("Could not preload the %s engine: %s", engine, exc)
         self.executor.submit(warm)
+
+    def _on_device_ready(self, info):
+        self.device_info = info
+        if not info or self.window is None:
+            return
+        name = tr("ocr.device_gpu" if info["device"] == "gpu" else "ocr.device_cpu").lower()
+        if "gpu" in info and "cpu" in info:
+            text = tr("ocr.device_times", device=name, cpu=f"{info['cpu']:.0f}", gpu=f"{info['gpu']:.0f}")
+        elif "gpu" in info:
+            text = tr("ocr.device_using", device=name)
+        else:
+            from gocr.ocr.rapid_ocr import gpu_available
+            text = tr("ocr.device_using", device=name) if gpu_available() else tr("ocr.device_nogpu")
+        self.window.set_device_info(text)
+        self.window.update_engine_ui()
+
+    # ------------------------------------------------------------------ offline translator
+    @staticmethod
+    def _pair_name(pair: str) -> str:
+        s, _, t = pair.partition("-")
+        return f"{i18n.lang_name(s).lower()} → {i18n.lang_name(t).lower()}"
+
+    def _needed_pairs(self) -> list[str] | None:
+        """Models for the usual case: the chosen original language (English when automatic)."""
+        from gocr import offline_mt
+        src = self.settings["source_lang"]
+        src = "en" if src == "auto" else src
+        return offline_mt.route(src, self.settings["target_lang"])
+
+    def prefetch_models(self, force: bool = False):
+        if self.settings["translator"] != "offline":
+            return
+        from gocr import offline_mt
+        pairs = self._needed_pairs()
+        if pairs:
+            if force:
+                offline_mt.downloads.failed.clear()
+            offline_mt.downloads.request(pairs)
+        self.refresh_offline_status()
+
+    def refresh_offline_status(self):
+        if self.window is None:
+            return
+        from gocr import offline_mt
+        st = self.mt_state
+        if self.settings["translator"] != "offline":
+            self.window.set_offline_status(tr("mt.google"), False)
+            return
+        pairs = self._needed_pairs()
+        if offline_mt.downloads.busy() and st["pair"]:
+            self.window.set_offline_status(tr("mt.downloading", pair=self._pair_name(st["pair"]),
+                                              pct=int(st["progress"] * 100)), False)
+        elif pairs is None:
+            self.window.set_offline_status(tr("mt.unsupported", lang=i18n.lang_name(self.settings["target_lang"])), False)
+        elif st["error"] and any(not offline_mt.is_installed(p) for p in pairs):
+            self.window.set_offline_status(tr("mt.failed", error=st["error"][:80]), True)
+        elif pairs and any(not offline_mt.is_installed(p) for p in pairs):
+            shown = pairs[0] if len(pairs) == 1 else f"{pairs[0].split('-')[0]}-{pairs[-1].split('-')[1]}"
+            self.window.set_offline_status(tr("mt.not_yet", pair=self._pair_name(shown)), True)
+        else:
+            ready = [self._pair_name(p) for p in offline_mt.installed_pairs()] or ["-"]
+            self.window.set_offline_status(tr("mt.ready", pairs=", ".join(ready)), False)
+
+    def _on_mt_progress(self, pair: str, progress: float, error: str):
+        if pair:
+            self.mt_state.update(pair=pair, progress=progress, error=error)
+        elif not error:
+            self.mt_state.update(pair="", progress=0.0)
+        if progress >= 1.0 and pair:
+            self.mt_state["error"] = ""
+        self.refresh_offline_status()
 
     # ------------------------------------------------------------------ capture area
     def _area_rect(self) -> tuple[int, int, int, int]:
@@ -360,7 +454,8 @@ class Controller(QObject):
                 self.overlay.set_view(rect)
 
     def _opts(self) -> dict:
-        return {k: self.settings[k] for k in ("ocr_engine", "ocr_lang", "rapid_script", "target_lang", "source_lang")}
+        return {k: self.settings[k] for k in ("ocr_engine", "ocr_lang", "rapid_script", "ocr_device",
+                                              "target_lang", "source_lang", "translator")}
 
     def _reset_size_if_needed(self):
         if not self.settings["remember_size"]:
@@ -487,6 +582,7 @@ class Controller(QObject):
         if not blocks:
             self.overlay.show_message(rect, tr("msg.no_text"), "warn", 2)
         elif warning:
+            log.warning("Translation problem: %s: %s", getattr(warning, "kind", "?"), warning)
             self.overlay.show_message(rect, str(warning), "error", 5)
         else:
             self.overlay.set_excluded(False)  # so it shows up in Win+Shift+S
@@ -658,6 +754,29 @@ class Controller(QObject):
         if img is not None:
             self._submit_live("full", area, img, cap, None)
 
+    def _log_live(self, warning):
+        """Writes translation problems (once per change) and a timing summary every 30 s."""
+        text = "" if warning is None else f"{getattr(warning, 'kind', type(warning).__name__)}: {warning}"
+        if text != self.live_warning_logged:
+            if text:
+                log.warning("Live translation problem: %s", text)
+            elif self.live_warning_logged:
+                log.info("Live translation working again")
+            self.live_warning_logged = text
+        now = time.monotonic()
+        if now - self.timing_last_log >= 30:
+            self.timing_last_log = now
+            t = pipeline.TIMINGS
+            if t["ocr"] or t["translate"]:
+                from gocr import translate as tl
+
+                def avg(v):
+                    return f"{sum(v) / len(v):.0f} ms x{len(v)}" if v else "-"
+                log.info("Live timing: OCR %s, translation %s (%s)", avg(t["ocr"]), avg(t["translate"]),
+                         tl.last["engine"] or "-")
+                t["ocr"].clear()
+                t["translate"].clear()
+
     def _submit_live(self, kind, area, img, cap, lines):
         jid = self.job
         self.live_inflight = True
@@ -698,7 +817,11 @@ class Controller(QObject):
         if blocks or not self.shown_blocks or sig != old:
             self.shown_blocks = blocks
         self.overlay.set_view(self._area_rect())
-        if warning is None:
+        self._log_live(warning)
+        from gocr import translate as tl
+        if warning is None and tl.last["note"] == "downloading" and self.settings["translator"] == "offline":
+            self.area.set_label(tr("area.live_downloading", pct=int(self.mt_state["progress"] * 100)))
+        elif warning is None:
             self.area.set_label(tr("area.live"))
         elif getattr(warning, "kind", "") == "rate":
             self.area.set_label(tr("area.live_rate"))

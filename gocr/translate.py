@@ -1,4 +1,7 @@
-"""Translation through free Google Translate endpoints (no API key).
+"""Translation: offline models (gocr.offline_mt) or free Google Translate endpoints (no API key).
+
+With the offline engine, Google is only used for language pairs that have no offline model,
+and while a model is still downloading.
 
 Google sometimes refuses one endpoint for a while (too many requests, network filters, etc.),
 so several endpoints are tried in order and the one that works is remembered. After every
@@ -148,9 +151,55 @@ def _request(text: str, target: str, source: str, timeout: float) -> tuple[str, 
     raise error
 
 
+_offline_import_error: Exception | None = None
+
+
+def _set_import_error(exc: Exception) -> None:
+    global _offline_import_error
+    _offline_import_error = exc
+    log.warning("Offline translator unavailable (%r): using Google. Run build.bat or run_dev.bat to install it.", exc)
+
+
+# Last translation made (for the live-mode status and the timing log)
+last = {"engine": "", "ms": 0.0, "note": ""}
+_last_fallback_note = ""
+
+
 def translate_texts(texts: list[str], target: str = "es", source: str = "auto",
-                    timeout: float = 8.0) -> list[str]:
-    """Translates several texts in a single request (separated by newlines)."""
+                    timeout: float = 8.0, engine: str = "google") -> list[str]:
+    """Translates several texts with the chosen engine ("offline" or "google")."""
+    global _last_fallback_note
+    t0 = time.perf_counter()
+    if engine == "offline" and _offline_import_error is None:
+        try:
+            import ctranslate2  # noqa: F401
+            import sentencepiece  # noqa: F401
+            from gocr import offline_mt
+        except ImportError as exc:   # dependencies missing (old .venv): use Google
+            _set_import_error(exc)
+            return translate_texts(texts, target, source, timeout, "google")
+        try:
+            out = offline_mt.translate_texts(texts, target, source)
+            last.update(engine="offline", ms=(time.perf_counter() - t0) * 1000, note="")
+            return out
+        except offline_mt.Unavailable as exc:
+            note = str(exc)
+            if note != _last_fallback_note:
+                log.info("Offline translation not available (%s): using Google", note)
+                _last_fallback_note = note
+            last["note"] = "downloading" if offline_mt.downloads.busy() else "unsupported"
+        except Exception:  # noqa: BLE001 - a broken model must not stop translation
+            log.exception("Offline translation failed: using Google")
+            last["note"] = "error"
+    else:
+        last["note"] = ""
+    out = _google_texts(texts, target, source, timeout)
+    last.update(engine="google", ms=(time.perf_counter() - t0) * 1000)
+    return out
+
+
+def _google_texts(texts: list[str], target: str, source: str, timeout: float) -> list[str]:
+    """Translates several texts in a single Google request (separated by newlines)."""
     clean = [" ".join(t.split()) for t in texts]
     if not any(clean):
         return clean
@@ -165,9 +214,11 @@ def translate_texts(texts: list[str], target: str = "es", source: str = "auto",
     return [_request(t, target, source, timeout)[0].strip() if t else "" for t in clean]
 
 
-def test_translation(target: str = "es") -> str:
-    """Used by the settings window: translates a sample sentence, raises TranslateError."""
+def test_translation(target: str = "es", engine: str = "google") -> tuple[str, str, float]:
+    """Used by the settings window: translates a sample sentence, raises TranslateError.
+    Returns (translation, engine used, milliseconds)."""
     global _cooldown_until
     with _lock:
         _cooldown_until = 0.0
-    return translate_texts(["The translation is working."], target, "en")[0]
+    text = translate_texts(["The translation is working."], target, "en", engine=engine)[0]
+    return text, last["engine"], last["ms"]

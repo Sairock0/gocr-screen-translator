@@ -1,12 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller recipe: builds dist\GOCR\GOCR.exe (portable folder, fast startup).
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
 
-hiddenimports = collect_submodules("winrt") + ["gocr.ocr.windows_ocr", "gocr.ocr.rapid_ocr"]
+hiddenimports = collect_submodules("winrt") + ["gocr.ocr.windows_ocr", "gocr.ocr.rapid_ocr", "gocr.offline_mt",
+                                               "ctranslate2", "sentencepiece"]
+binaries = collect_dynamic_libs("onnxruntime") + collect_dynamic_libs("ctranslate2")
 
 a = Analysis(
     ["run.py"],
     pathex=["."],
+    binaries=binaries,
     datas=[
         ("gocr/models/det.onnx", "gocr/models"),
         ("gocr/models/rec.onnx", "gocr/models"),

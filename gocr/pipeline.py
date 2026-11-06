@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+import time
 from collections import OrderedDict
 from difflib import SequenceMatcher
 
@@ -27,6 +28,8 @@ from gocr.wordsplit import fix_spacing
 log = logging.getLogger(__name__)
 
 PAD = 16
+# Milliseconds of the last OCR passes and translations (read and cleared by the app's timing log)
+TIMINGS: dict[str, list[float]] = {"ocr": [], "translate": []}
 _ALNUM = re.compile(r"[^\W_]", re.UNICODE)
 
 
@@ -132,7 +135,10 @@ class TranslationCache:
 def ocr_screen_lines(img: np.ndarray, cap: tuple[int, int, int, int], opts: dict) -> list[OcrLine]:
     """OCR of the whole capture; returns ALL lines in screen coordinates."""
     engine = get_engine(opts["ocr_engine"], engine_variant(opts))
-    return [ln.shifted(cap[0], cap[1]) for ln in recognize(engine, img)]
+    t0 = time.perf_counter()
+    lines = [ln.shifted(cap[0], cap[1]) for ln in recognize(engine, img)]
+    TIMINGS["ocr"].append((time.perf_counter() - t0) * 1000)
+    return lines
 
 
 def _filter_area(lines: list[OcrLine], area: tuple[int, int, int, int]) -> list[OcrLine]:
@@ -214,7 +220,10 @@ def build_blocks(lines: list[OcrLine], img: np.ndarray, cap: tuple[int, int, int
         if on_stage:
             on_stage(tr("area.translating"))
         try:
-            results = translate_texts([b.text for b in missing], target, source)
+            t0 = time.perf_counter()
+            results = translate_texts([b.text for b in missing], target, source,
+                                      engine=opts.get("translator", "offline"))
+            TIMINGS["translate"].append((time.perf_counter() - t0) * 1000)
             for b, t in zip(missing, results):
                 b.translation = t
                 cache.put((b.text, target, source), t)

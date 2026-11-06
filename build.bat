@@ -27,8 +27,7 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 echo Installing dependencies, the first time takes a few minutes...
-".venv\Scripts\python.exe" -m pip install --upgrade pip >nul
-".venv\Scripts\python.exe" -m pip install -r requirements.txt pyinstaller
+call scripts\install_deps.bat pyinstaller
 if errorlevel 1 goto :error
 
 echo Packaging with PyInstaller...

@@ -15,6 +15,7 @@ import logging
 import math
 import os
 import re
+import time
 
 import cv2
 import numpy as np
@@ -26,7 +27,16 @@ from gocr.ocr import OcrError, OcrLine, upscale_factor
 log = logging.getLogger(__name__)
 
 
-def _session(path):
+def gpu_available() -> bool:
+    """DirectML (any DirectX 12 graphics card) is available with the onnxruntime-directml package."""
+    try:
+        import onnxruntime as ort
+        return "DmlExecutionProvider" in ort.get_available_providers()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _session(path, gpu: bool = False):
     import onnxruntime as ort
 
     opts = ort.SessionOptions()
@@ -34,7 +44,23 @@ def _session(path):
     opts.inter_op_num_threads = 1
     opts.log_severity_level = 3
     opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    return ort.InferenceSession(str(path), sess_options=opts, providers=["CPUExecutionProvider"])
+    providers = ["CPUExecutionProvider"]
+    if gpu:
+        opts.enable_mem_pattern = False          # required by DirectML
+        opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        providers = ["DmlExecutionProvider", "CPUExecutionProvider"]
+    return ort.InferenceSession(str(path), sess_options=opts, providers=providers)
+
+
+def _benchmark_image() -> np.ndarray:
+    """A game-like strip of text used to compare the processor and the graphics card."""
+    img = np.full((170, 1400, 3), (32, 28, 24), np.uint8)
+    lines = ["Quest updated: speak with the merchant near the old bridge.",
+             "You obtained 3 Iron Ore and 250 gil. Press any key to continue.",
+             "EXIT GAME    OPTIONS    LOAD GAME"]
+    for i, text in enumerate(lines):
+        cv2.putText(img, text, (30, 45 + i * 50), cv2.FONT_HERSHEY_SIMPLEX, 0.95, (235, 230, 215), 2, cv2.LINE_AA)
+    return cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
 
 
 SCRIPTS = ("auto", "latin", "chinese")
@@ -44,8 +70,8 @@ _CJK = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]")
 class _Recognizer:
     """One CRNN/CTC recognition model with its dictionary."""
 
-    def __init__(self, path):
-        self.session = _session(path)
+    def __init__(self, path, gpu: bool = False):
+        self.session = _session(path, gpu)
         meta = self.session.get_modelmeta().custom_metadata_map
         chars = meta.get("character", "").splitlines()
         if not chars:
@@ -67,22 +93,61 @@ class RapidOcr:
     rec_h = 48
     rec_w = 320
 
-    def __init__(self, script: str = "auto"):
+    def __init__(self, variant: str = "auto"):
+        """variant: "<alphabet>" or "<alphabet>|<device>" (device: auto, cpu or gpu)."""
+        script, _, device = variant.partition("|")
         self.script = script if script in SCRIPTS else "auto"
-        det_path = resource_path("gocr", "models", "det.onnx")
-        paths = {"chinese": resource_path("gocr", "models", "rec.onnx"),
-                 "latin": resource_path("gocr", "models", "rec_latin_cyrillic.onnx")}
+        device = device or "auto"
+        self._det_path = resource_path("gocr", "models", "det.onnx")
+        self._rec_paths = {"chinese": resource_path("gocr", "models", "rec.onnx"),
+                           "latin": resource_path("gocr", "models", "rec_latin_cyrillic.onnx")}
         needed = ["latin", "chinese"] if self.script == "auto" else [self.script]
-        if not det_path.exists() or any(not paths[k].exists() for k in needed):
+        if not self._det_path.exists() or any(not self._rec_paths[k].exists() for k in needed):
             raise OcrError(tr("err.rapid_models"))
+        self.device = "cpu"
+        self.timings: dict[str, float] = {}
         try:
-            self.det = _session(det_path)
-            self.recs = {k: _Recognizer(paths[k]) for k in needed}
+            self._load(needed, gpu=False)
+            if device != "cpu" and gpu_available():
+                self._try_gpu(needed, forced=(device == "gpu"))
         except OcrError:
             raise
         except Exception as exc:
             raise OcrError(tr("err.rapid_load", error=exc)) from exc
+
+    def _load(self, needed, gpu: bool):
+        self.det = _session(self._det_path, gpu)
+        self.recs = {k: _Recognizer(self._rec_paths[k], gpu) for k in needed}
         self.det_input = self.det.get_inputs()[0].name
+
+    def _time(self, img, runs: int = 3) -> float:
+        self.recognize(img)   # first pass prepares the models
+        t0 = time.perf_counter()
+        for _ in range(runs):
+            self.recognize(img)
+        return (time.perf_counter() - t0) / runs * 1000
+
+    def _try_gpu(self, needed, forced: bool):
+        """Uses the graphics card when it is faster than the processor (or when forced)."""
+        img = _benchmark_image()
+        cpu_state = (self.det, self.recs, self.det_input)
+        try:
+            cpu_ms = None if forced else self._time(img)
+            self._load(needed, gpu=True)
+            gpu_ms = self._time(img)
+        except Exception as exc:  # noqa: BLE001 - fall back to the processor
+            log.warning("RapidOCR on the graphics card failed: %r", exc)
+            self.det, self.recs, self.det_input = cpu_state
+            return
+        if cpu_ms is not None:
+            self.timings["cpu"] = cpu_ms
+        self.timings["gpu"] = gpu_ms
+        if forced or gpu_ms < cpu_ms * 0.9:
+            self.device = "gpu"
+        else:
+            self.det, self.recs, self.det_input = cpu_state
+        log.info("RapidOCR device: %s (processor %s ms, graphics card %.0f ms)", self.device,
+                 "-" if cpu_ms is None else f"{cpu_ms:.0f}", gpu_ms)
 
     # ------------------------------------------------------------------ API
     def recognize(self, img_bgra: np.ndarray) -> list[OcrLine]:

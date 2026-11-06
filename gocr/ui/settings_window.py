@@ -57,6 +57,7 @@ class SettingsWindow(QWidget):
     setting_changed = Signal(str, object)
     hide_requested = Signal()
     test_translation = Signal()
+    download_models = Signal()
 
     def __init__(self, settings: Settings, icon_pixmap: QPixmap | None = None):
         super().__init__(None, Qt.FramelessWindowHint | Qt.Window)
@@ -265,6 +266,15 @@ class SettingsWindow(QWidget):
             lambda _i: self._emit("rapid_script", self.script_combo.currentData()))
         self.script_row = row(tr("ocr.script"), self.script_combo, tr("ocr.script_hint"))
         card.body.addWidget(self.script_row)
+        self.device_seg = Segmented([("auto", tr("ocr.device_auto")), ("cpu", tr("ocr.device_cpu")),
+                                     ("gpu", tr("ocr.device_gpu"))])
+        self.device_seg.changed.connect(lambda k: self._emit("ocr_device", k))
+        self.device_row = row(tr("ocr.device"), self.device_seg, tr("ocr.device_hint"))
+        card.body.addWidget(self.device_row)
+        self.device_info = QLabel()
+        self.device_info.setObjectName("Muted")
+        self.device_info.setWordWrap(True)
+        card.body.addWidget(self.device_info)
         self.ocr_info = QLabel()
         self.ocr_info.setObjectName("Muted")
         self.ocr_info.setWordWrap(True)
@@ -274,6 +284,18 @@ class SettingsWindow(QWidget):
 
     def _card_translate(self):
         card = Card(tr("tr.title"), tr("tr.subtitle"))
+        self.translator_seg = Segmented([("offline", tr("tr.engine_offline")), ("google", tr("tr.engine_google"))])
+        self.translator_seg.changed.connect(lambda k: self._emit("translator", k))
+        card.body.addWidget(row(tr("tr.engine"), self.translator_seg, tr("tr.engine_hint")))
+        self.mt_status = QLabel()
+        self.mt_status.setObjectName("Muted")
+        self.mt_status.setWordWrap(True)
+        self.mt_download_btn = QPushButton(tr("tr.download"))
+        self.mt_download_btn.clicked.connect(self.download_models.emit)
+        status_row = QHBoxLayout()
+        status_row.addWidget(self.mt_status, 1)
+        status_row.addWidget(self.mt_download_btn, 0, Qt.AlignVCenter)
+        card.body.addLayout(status_row)
         self.target_combo = QComboBox()
         self.target_combo.setMinimumWidth(200)
         for code in TARGET_LANGS:
@@ -297,6 +319,13 @@ class SettingsWindow(QWidget):
         card.body.addWidget(row(tr("tr.test_label"), test_btn))
         card.body.addWidget(self.test_result)
         return card
+
+    def set_offline_status(self, text: str, show_download: bool):
+        self.mt_status.setText(text)
+        self.mt_download_btn.setVisible(show_download)
+
+    def set_device_info(self, text: str):
+        self.device_info.setText(text)
 
     def show_test_result(self, ok: bool, text: str):
         mark = "✓" if ok else "⚠"
@@ -379,6 +408,8 @@ class SettingsWindow(QWidget):
         self.remember.setChecked(bool(s["remember_size"]))
         self.engine_seg.set_value(s["ocr_engine"])
         self._select(self.script_combo, s["rapid_script"])
+        self.device_seg.set_value(s["ocr_device"])
+        self.translator_seg.set_value(s["translator"])
         self._select(self.target_combo, s["target_lang"])
         self._select(self.source_combo, s["source_lang"])
         self._select(self.style_combo, s["overlay_style"])
@@ -425,6 +456,8 @@ class SettingsWindow(QWidget):
         self.engine_seg.set_value(engine)
         self.lang_row.setVisible(engine == "windows")
         self.script_row.setVisible(engine == "rapid")
+        self.device_row.setVisible(engine == "rapid")
+        self.device_info.setVisible(engine == "rapid" and bool(self.device_info.text()))
         if engine == "rapid":
             self.ocr_info.setText(tr("ocr.info_rapid"))
         elif self.lang_combo.count() == 0:

@@ -30,6 +30,8 @@ DEFAULTS: dict = {
     "rapid_script": "auto",               # RapidOCR alphabet: "auto" | "latin" | "chinese"
     "ocr_lang": "en-US",                  # text language for Windows OCR
     "source_lang": "auto",
+    "translator": "offline",              # "offline" (models on this PC) | "google" (internet)
+    "ocr_device": "auto",                 # RapidOCR: "auto" | "cpu" | "gpu"
     "target_lang": "es",
     "overlay_style": "auto",              # "auto" (game colors) | "theme"
     "overlay_opacity": 1.0,
@@ -88,6 +90,8 @@ class Settings:
             "live_activation": ("hold", "toggle"),
             "ocr_engine": ("windows", "rapid"),
             "rapid_script": ("auto", "latin", "chinese"),
+            "translator": ("offline", "google"),
+            "ocr_device": ("auto", "cpu", "gpu"),
         }
         for key, allowed in choices.items():
             if d.get(key) not in allowed:

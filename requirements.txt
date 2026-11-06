@@ -1,7 +1,12 @@
 PySide6-Essentials>=6.6
 numpy>=1.24
 opencv-python-headless>=4.8
-onnxruntime>=1.17
+# ONNX Runtime with DirectML on Windows: RapidOCR can use any DirectX 12 graphics card
+onnxruntime>=1.17; sys_platform != "win32"
+onnxruntime-directml>=1.17; sys_platform == "win32"
+# Offline translation (OPUS-MT models)
+ctranslate2>=4.0
+sentencepiece>=0.2
 mss>=9.0
 # Windows OCR (Windows.Media.Ocr) through pywinrt
 winrt-runtime>=3.0,<4; sys_platform == "win32"

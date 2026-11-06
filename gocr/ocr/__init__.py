@@ -68,7 +68,9 @@ _engine_cache: dict[tuple, object] = {}
 
 def engine_variant(opts: dict) -> str:
     """Windows OCR uses a language; RapidOCR uses an alphabet (auto / latin / chinese)."""
-    return opts.get("ocr_lang", "en-US") if opts.get("ocr_engine") == "windows" else opts.get("rapid_script", "auto")
+    if opts.get("ocr_engine") == "windows":
+        return opts.get("ocr_lang", "en-US")
+    return f'{opts.get("rapid_script", "auto")}|{opts.get("ocr_device", "auto")}'
 
 
 def get_engine(name: str, lang: str):

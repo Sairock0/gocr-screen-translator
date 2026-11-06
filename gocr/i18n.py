@@ -38,7 +38,7 @@ def tr(string_id: str, /, **kwargs) -> str:
 
 def lang_name(code: str) -> str:
     """Display name of a translation language code (Google Translate codes)."""
-    entry = LANG_NAMES.get(code)
+    entry = LANG_NAMES.get(code) or LANG_NAMES.get({"zh": "zh-CN"}.get(code, ""))
     if entry is None:
         return code
     return entry[1] if _lang == "es" else entry[0]
@@ -99,6 +99,8 @@ STRINGS: dict[str, dict[str, str]] = {
     "area.live_offline": {"en": "● Live · can't reach the translator", "es": "● En vivo · no conecta con el traductor"},
     "area.live_rate": {"en": "● Live · Google is limiting requests, wait a moment",
                        "es": "● En vivo · Google limitó las peticiones, espera un momento"},
+    "area.live_downloading": {"en": "● Live · downloading translator {pct} % (Google meanwhile)",
+                              "es": "● En vivo · descargando traductor {pct} % (mientras, Google)"},
     "area.live_error": {"en": "● Live · translation error (see the log)", "es": "● En vivo · error al traducir (mira el registro)"},
     "area.ocr_error": {"en": "⚠ OCR error: check the settings", "es": "⚠ Error de OCR: mira los ajustes"},
     "area.preview_screen": {"en": "1920×1080 screen", "es": "pantalla 1920×1080"},
@@ -205,6 +207,16 @@ STRINGS: dict[str, dict[str, str]] = {
                              "el cirílico (ruso, ucraniano…) y el chino. "
                              "La primera lectura tarda un poco más mientras se cargan los modelos."},
     "ocr.script": {"en": "Alphabet", "es": "Alfabeto"},
+    "ocr.device": {"en": "Run on", "es": "Procesar con"},
+    "ocr.device_hint": {"en": "Automatic uses the faster one.", "es": "Automático usa el más rápido."},
+    "ocr.device_auto": {"en": "Automatic", "es": "Automático"},
+    "ocr.device_cpu": {"en": "Processor", "es": "Procesador"},
+    "ocr.device_gpu": {"en": "Graphics card", "es": "Tarjeta gráfica"},
+    "ocr.device_using": {"en": "Using: {device}.", "es": "Usando: {device}."},
+    "ocr.device_times": {"en": "Using: {device} (processor {cpu} ms, graphics card {gpu} ms per read).",
+                         "es": "Usando: {device} (procesador {cpu} ms, tarjeta gráfica {gpu} ms por lectura)."},
+    "ocr.device_nogpu": {"en": "Using: processor (no compatible graphics card found).",
+                         "es": "Usando: procesador (no se encontró una tarjeta gráfica compatible)."},
     "ocr.script_hint": {"en": "Automatic recognizes them all. Pick one only if it ever mixes them up.",
                         "es": "Automático los reconoce todos. Elige uno solo si alguna vez los confunde."},
     "ocr.script_auto": {"en": "Automatic", "es": "Automático"},
@@ -221,8 +233,28 @@ STRINGS: dict[str, dict[str, str]] = {
 
     # --- translation card
     "tr.title": {"en": "Translation", "es": "Traducción"},
-    "tr.subtitle": {"en": "Free Google Translate. Requires an internet connection.",
-                    "es": "Google Translate gratuito. Necesita conexión a internet."},
+    "tr.subtitle": {"en": "On this PC without internet, or with the free Google Translate.",
+                    "es": "En tu PC sin internet, o con Google Translate gratuito."},
+    "tr.engine": {"en": "Translator", "es": "Traductor"},
+    "tr.engine_offline": {"en": "Offline", "es": "Sin internet"},
+    "tr.engine_google": {"en": "Google", "es": "Google"},
+    "tr.engine_hint": {"en": "Offline: fast and never blocked, translates on this PC. Google: needs internet and sometimes limits requests.",
+                       "es": "Sin internet: rápido y nunca se bloquea, traduce en tu PC. Google: necesita internet y a veces limita las peticiones."},
+    "tr.download": {"en": "Download now", "es": "Descargar ahora"},
+    "mt.google": {"en": "Using Google Translate (internet).", "es": "Se usa Google Translate (internet)."},
+    "mt.ready": {"en": "Ready offline: {pairs}. Other languages download by themselves the first time (about 80 MB each).",
+                 "es": "Listo sin internet: {pairs}. Otros idiomas se descargan solos la primera vez (unos 80 MB cada uno)."},
+    "mt.not_yet": {"en": "The {pair} translator downloads the first time you translate (about 80 MB). Google is used meanwhile.",
+                   "es": "El traductor {pair} se descarga la primera vez que traduzcas (unos 80 MB). Mientras tanto se usa Google."},
+    "mt.downloading": {"en": "Downloading the {pair} translator… {pct} %. Google is used meanwhile.",
+                       "es": "Descargando el traductor {pair}… {pct} %. Mientras tanto se usa Google."},
+    "mt.unsupported": {"en": "There is no offline translator into {lang}: Google is used.",
+                       "es": "No hay traductor sin internet a {lang}: se usa Google."},
+    "mt.failed": {"en": "Could not download the translator ({error}). Google is used; it will retry later.",
+                  "es": "No se pudo descargar el traductor ({error}). Se usa Google y se reintentará más tarde."},
+    "tr.test_ok_engine": {"en": "It works: «{text}» ({engine}, {ms} ms)", "es": "Funciona: «{text}» ({engine}, {ms} ms)"},
+    "tr.used_offline": {"en": "offline", "es": "sin internet"},
+    "tr.used_google": {"en": "Google", "es": "Google"},
     "tr.target": {"en": "Translate to", "es": "Traducir a"},
     "tr.source": {"en": "Original language", "es": "Idioma original"},
     "tr.test_label": {"en": "Check that translation works", "es": "Comprobar que la traducción funciona"},
