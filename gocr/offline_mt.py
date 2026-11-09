@@ -68,20 +68,59 @@ class Unavailable(Exception):
 
 
 # --------------------------------------------------------------------------- languages
+# Languages the identifier chooses from (Latin and Cyrillic alphabets); the others go by alphabet.
+_LANGID_LANGS = ["en", "es", "fr", "de", "it", "pt", "nl", "pl", "tr", "id", "vi", "ru", "uk"]
+_identifier = None
+_identifier_failed = False
+_identifier_lock = threading.Lock()
+
+
+def _langid():
+    """py3langid (a small statistical model, ~0.1 ms per text), loaded on first use."""
+    global _identifier, _identifier_failed
+    with _identifier_lock:
+        if _identifier is None and not _identifier_failed:
+            try:
+                import py3langid.langid as langid
+                t0 = time.perf_counter()
+                ident = langid.LanguageIdentifier.from_modelpath(langid.MODEL_DIR / langid.MODEL_FILE, norm_probs=True)
+                ident.set_languages(_LANGID_LANGS)
+                _identifier = ident
+                log.info("Language identifier loaded in %.0f ms", (time.perf_counter() - t0) * 1000)
+            except Exception as exc:  # noqa: BLE001 - fall back to frequent words
+                _identifier_failed = True
+                log.warning("Language identifier unavailable (%r): using frequent words", exc)
+        return _identifier
+
+
+def preload() -> None:
+    _langid()
+
+
 def detect_language(text: str) -> str:
-    """Cheap language guess from the alphabet (and frequent words for the Latin alphabet)."""
+    """Language guess: by alphabet, then a statistical identifier for Latin and Cyrillic text.
+    Short or unclear Latin text counts as English (most games are in English)."""
     if _KANA.search(text):
         return "ja"
     if _HANGUL.search(text):
         return "ko"
     if _HAN.search(text):
         return "zh"
-    if _CYRILLIC.search(text):
-        return "uk" if _UKRAINIAN.search(text) else "ru"
     if _ARABIC.search(text):
         return "ar"
     if _THAI.search(text):
         return "th"
+    cyrillic = bool(_CYRILLIC.search(text))
+    ident = _langid()
+    if ident is not None:
+        lang, prob = ident.classify(text)
+        if cyrillic:
+            return lang if lang in ("ru", "uk") and prob >= 0.6 else ("uk" if _UKRAINIAN.search(text) else "ru")
+        if lang not in ("ru", "uk") and prob >= 0.6:
+            return lang
+        return "en"
+    if cyrillic:
+        return "uk" if _UKRAINIAN.search(text) else "ru"
     words = [w.lower() for w in _WORD.findall(text)]
     best, best_hits = "en", 0
     for lang, stop in _STOP_SETS.items():

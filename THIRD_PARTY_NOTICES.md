@@ -12,6 +12,7 @@ third-party components, each under its own license:
 | [OPUS-MT](https://github.com/Helsinki-NLP/Opus-MT) translation models by Helsinki-NLP (University of Helsinki), converted to CTranslate2 and downloaded on demand from the `models-v1` release | Offline translator | CC-BY-4.0 |
 | [CTranslate2](https://github.com/OpenNMT/CTranslate2) | Offline translator inference | MIT |
 | [SentencePiece](https://github.com/google/sentencepiece) | Offline translator tokenization | Apache-2.0 |
+| [py3langid](https://github.com/adbar/py3langid) (fork of langid.py) | Detecting the language of the text | BSD-3-Clause |
 | [OpenCV](https://opencv.org/) (`opencv-python-headless`) | Image processing | Apache-2.0 |
 | [NumPy](https://numpy.org/) | Arrays | BSD-3-Clause |
 | [python-mss](https://github.com/BoboTiG/python-mss) | Screen capture | MIT |

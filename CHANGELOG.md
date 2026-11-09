@@ -2,6 +2,7 @@
 
 ## 1.7.0
 - **Offline translator** (new default): OPUS-MT models run on your PC with CTranslate2. Around 0.05-0.3 s per text, no internet needed and never blocked. Each language pair (about 65-70 MB) downloads automatically the first time it is needed; pairs without a model go through English, and Google is used for languages that have no offline model and while a model downloads.
+- The language of each text is detected with py3langid (French, German, Italian, Russian, Ukrainian... are told apart even in short menu texts); unclear short Latin text counts as English.
 - RapidOCR can run on the **graphics card** (DirectML: NVIDIA, AMD or Intel). "Automatic" compares the processor and the graphics card when the engine loads and keeps the faster one.
 - Translation problems in live mode are now written to the log, together with a timing summary (OCR and translation) every 30 seconds.
 - `run_dev.bat` installs new dependencies by itself (shared `scripts/install_deps.bat`).

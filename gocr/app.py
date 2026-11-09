@@ -363,6 +363,12 @@ class Controller(QObject):
             try:
                 from gocr.wordsplit import fix_spacing
                 fix_spacing("warmupwords")  # loads the word list
+                if self.settings["translator"] == "offline":
+                    try:
+                        from gocr import offline_mt
+                        offline_mt.preload()   # language identifier
+                    except Exception:  # noqa: BLE001
+                        pass
                 eng = get_engine(engine, lang)
                 if engine == "rapid":
                     self.device_ready.emit({"device": eng.device, **eng.timings})

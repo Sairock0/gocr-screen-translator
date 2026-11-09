@@ -7,6 +7,7 @@ onnxruntime-directml>=1.17; sys_platform == "win32"
 # Offline translation (OPUS-MT models)
 ctranslate2>=4.0
 sentencepiece>=0.2
+py3langid>=0.3
 mss>=9.0
 # Windows OCR (Windows.Media.Ocr) through pywinrt
 winrt-runtime>=3.0,<4; sys_platform == "win32"
